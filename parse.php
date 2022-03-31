@@ -10,7 +10,7 @@
  ****************************************************************************/
 
 
-//----- definig variables -----
+//----- defining variables -----
 ini_set('display_errors', 'stderr');
 define("ERR_OK", 0);
 define("ERR_PARAM", 10);
@@ -29,7 +29,7 @@ $instructions = [
     'DEFVAR'      => ['var'],
     'CALL'        => ['label'],
     'RETURN'      => [],
-    //stack
+    //stack operations
     'PUSHS'       => ['symbol'],
     'POPS'        => ['var'],
     'CLEARS'      => [],
@@ -64,7 +64,7 @@ $instructions = [
     'FLOAT2INT'   => ['var', 'symbol'],
     'INT2CHAR'    => ['var', 'symbol'],
     'STRI2INT'    => ['var', 'symbol', 'symbol'],
-    //input, output 
+    //input output 
     'READ'        => ['var', 'type'],
     'WRITE'       => ['symbol'],
     //string operations
@@ -86,10 +86,10 @@ $instructions = [
 ];
 
 $stats = [
-    'comments'    => 0,                         //--comments
-    'loc'         => 0,                         //--loc
-    'jumps'       => 0,                         //--jumps
-    'labels'      => [],                        //--labels
+    'comments'    => 0,                       
+    'loc'         => 0,                     
+    'jumps'       => 0,                        
+    'labels'      => [],                        
     'jumps_to'    => [],
     'jumps_back'  => 0,
     'jumps_front' => 0,
@@ -110,11 +110,11 @@ $XMLmem->setAttribute("language", "IPPcode22");
 //----- used regex-es -----
 $reg_label = "/^([\w_\-$&?%*!]+)$/"; //a-z A-Z _ -$&?%*!
 $reg_variable = "/^([a-zA-Z_\-$&%*!?][\w_\-$&%*!?]*)$/"; // sekvence libovolných alfanumerických a speciálních znaků bez bílých znaků začínající písmenem nebo speciálním znakem, kde speciální znaky jsou: _, -, $, &, %, *, !, ?
-$reg_integer = "/^[-+]?\d+$/"; //-+cislo
+$reg_integer = "/^[-+]?\d+$/"; //-+number
 $reg_float = "/^[0-9\.abcdefABCDEF\+\-px]*$/"; // float
 $reg_first_word = "/^([\S]+)/"; // checks for first word 
-//----- used functions -----
 
+//----- used functions -----
 /**
  * Prints debugging informations
  * @param str is string to be printed
@@ -122,7 +122,9 @@ $reg_first_word = "/^([\S]+)/"; // checks for first word
 function debug_print($str)
 {
     global $debug;
-    if ($debug) echo $str;
+    if ($debug) {
+        echo $str;
+    }
 }
 
 /**
@@ -281,7 +283,7 @@ if (count($argv) > 2) {
     }
 } else if (count($argv) == 2) {
     if ($argv[1] == "-h" || $argv[1] == "--help") {
-        echo" 
+        echo " 
          _____ _____  _____                                               _           
         |_   _|  __ \|  __ \                                             | |          
           | | | |__) | |__) |  ______   _ __   __ _ _ __ ___  ___   _ __ | |__  _ __  
@@ -295,11 +297,14 @@ if (count($argv) > 2) {
         XML representation of program. If set can output statistics.
    Options :
    \"--help\" or \"-h\"  print help 
-   \"--stats=[file]\" to set on the output stat file and give location
+   \"--stats=[file]\"  to set on the output stat file and give location
    \"--loc\"           number of lines
    \"--comments\"      number of comments
    \"--labels\"        number of labels
    \"--jumps\"         number of jumps
+   \"--fwjumps\"       number of forward jumps
+   \"--backjumps\"     number of backward jumps
+   \"--badjumps\"      number of bad jumps (no matching label)
    if used, you must set source file, otherwise script will fail\n\n";
         exit(ERR_OK);
     }
@@ -353,7 +358,6 @@ for ($i; $i < count($input); $i++) {
     if (preg_match($reg_first_word, $input[$i], $reg_cut)) {
         $count++;
         $opcode = strtoupper($reg_cut[0]);
-        // v $opcode je nazov instrukcie
         if (isset($instructions[$opcode])) {
             //opcode found in instruction set
             $stats['loc']++;
@@ -366,9 +370,9 @@ for ($i; $i < count($input); $i++) {
             $regexinstr = "/^(\w+)"; // a-z A-Z _
 
             for ($y = 0; $y < $num; $y++) {
-                $regexinstr = $regexinstr . "\s+([^\s]+)"; // ' ' hocico ' ' 
+                $regexinstr = $regexinstr . "\s+([^\s]+)"; // ' ' ..... ' ' 
             }
-            $regexinstr = $regexinstr . "\s*$/"; // ' ' terminacia
+            $regexinstr = $regexinstr . "\s*$/"; // ' ' termination
 
             //   echo $regexp;
             //   echo "-------------------\n";
@@ -498,7 +502,6 @@ foreach ($stats['jumps_to'] as $jump_label) {
 
         debug_print("nenasiel som vec\n");
     }
-
 }
 // print_r($stats['labels']);
 // print("\n");
@@ -584,9 +587,9 @@ if (count($argv) > 1) {
     }
     fclose($fp);
 }
-if ($debug){
+if ($debug) {
     print_r($stats);
-} 
+}
 $output->appendChild($XMLmem);
-print ($output->saveXML());
+print($output->saveXML());
 exit(ERR_OK);
