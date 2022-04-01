@@ -917,7 +917,36 @@ def instr_write(symb):
 
 def instr_read(var, type):
     var1 = var
-    # TODO
+    if var.type == "var":
+        tmp = var1.value.split("@")
+        var1 = get_variable(tmp[0], tmp[1])
+
+    type_var = type.value
+    print(inputLines)
+    if len(inputLines) == 0:
+        poped = "nil"
+        type_var = "nil"
+    else:
+        poped = inputLines[0].strip()
+        inputLines.remove(inputLines[0])
+    print(inputLines, poped)
+
+    if type_var == "int":
+        new_arg = Argument("int", int(poped))
+    elif type_var == "bool":
+        if poped.upper == "TRUE":
+            new_arg = Argument("bool", "true")
+        else:
+            new_arg = Argument("bool", "false")
+    elif type_var == "string":
+        new_arg = Argument("string", poped)
+    elif type_var == "nil":
+        new_arg = Argument("nil", "nil")
+
+    print(var.value, new_arg.value, poped, inputLines)
+    tmp = var.value.split("@")
+    find_variable(tmp[0], tmp[1])
+    update_variable(tmp[0], tmp[1], new_arg)
 
 
 def instr_exit(symb):
