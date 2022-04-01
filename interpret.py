@@ -51,9 +51,10 @@ class Argument:
 
 
 class Instruction:
-    def __init__(self, name, number):
+    def __init__(self, name, number, order):
         self.name = name
         self.number = number
+        self.order = order
         self.args = []
 
     def addArgument(self, argType, value):
@@ -95,7 +96,12 @@ def print_lf():
 
 
 def print_err_and_exit(string, ret_code):
-    stderr.write(string + ", exiting...\n")
+    global position_pointer
+    try:
+        stderr.write('\033[91m' + string + ". Error occured on : " +
+                     instructions[position_pointer].name+" with order number : "+str(instructions[position_pointer].order)+", exiting...\n" + '\033[0m')
+    except:
+        stderr.write('\033[91m' + string + ", exiting...\n" + '\033[0m')
     exit(ret_code)
 
 ##############################INSTRUCTION FUNCTIONS############################
@@ -196,7 +202,8 @@ def fill_instructions():
     for elem in root:
         debug(elem.attrib['opcode'])
         instructions.append(
-            Instruction(elem.attrib['opcode'].upper(), iCount)
+            Instruction(elem.attrib['opcode'].upper(),
+                        iCount, int(elem.attrib['order']))
         )
         for subelem in elem:
             argval = ""
@@ -673,7 +680,7 @@ def instr_int_to_char(var, symb):
     if symb.type == "var":
         tmp = var1.value.split("@")
         var1 = get_variable(tmp[0], tmp[1])
-    print(var.value, var1.value)
+
     if var1.type != "int":
         print_err_and_exit(
             "Argument has to be of type int to be converted to char", 53)
@@ -720,7 +727,7 @@ def instr_strlen(var, symb):
     if symb.type == "var":
         tmp = var1.value.split("@")
         var1 = get_variable(tmp[0], tmp[1])
-    print(var.value, var1.value)
+
     if var1.type != "string":
         print_err_and_exit(
             "Argument has to be of type string to find its length", 53)
@@ -820,7 +827,6 @@ def instr_setchar(instruction):
         print_err_and_exit("Can not change string with empty character", 58)
     new_var = var1.value[:int(var2.value)] + \
         var3.value[0] + var1.value[int(var2.value)+1:]
-    print(new_var, var3.value[0])
 
     new_arg = Argument("string", new_var)
 
@@ -834,13 +840,101 @@ def instr_type(var, symb):
     if symb.type == "var":
         tmp = var1.value.split("@")
         var1 = get_variable(tmp[0], tmp[1])
-    print(var.value, var1.value)
 
     new_arg = Argument("string", var1.type)
 
     tmp = var.value.split("@")
     find_variable(tmp[0], tmp[1])
     update_variable(tmp[0], tmp[1], new_arg)
+
+
+def instr_jmpeq(instruction):
+    global position_pointer
+    var1 = instruction.args[0].value
+    var2 = instruction.args[1]
+    var3 = instruction.args[2]
+
+    if var2.type == "var":
+        tmp = var2.value.split("@")
+        var2 = get_variable(tmp[0], tmp[1])
+    if var3.type == "var":
+        tmp = var3.value.split("@")
+        var3 = get_variable(tmp[0], tmp[1])
+
+    if (var2.type != var3.type):
+        if (var2.type == "nil" or var3.type == "nil"):
+            return
+        print_err_and_exit("Variables are of different type", 53)
+
+    if (var2.value == var3.value):
+        if not(var1 in labels.keys()):
+            print_err_and_exit("Label does not exist in jumpifeq", 52)
+        position_pointer = int(labels[var1]-1)
+
+
+def instr_jmpneq(instruction):
+    global position_pointer
+    var1 = instruction.args[0].value
+    var2 = instruction.args[1]
+    var3 = instruction.args[2]
+
+    if var2.type == "var":
+        tmp = var2.value.split("@")
+        var2 = get_variable(tmp[0], tmp[1])
+    if var3.type == "var":
+        tmp = var3.value.split("@")
+        var3 = get_variable(tmp[0], tmp[1])
+
+    if (var2.type != var3.type):
+        if (var2.type == "nil" or var3.type == "nil"):
+            return
+        print_err_and_exit("Variables are of different type", 53)
+    if (var2.value != var3.value):
+        if not(var1 in labels.keys()):
+            print_err_and_exit("Label does not exist in jumpifneq", 52)
+        position_pointer = int(labels[var1]-1)
+
+
+def instr_write(symb):
+    var = symb
+    if symb.type == "var":
+        tmp = var.value.split("@")
+        var = get_variable(tmp[0], tmp[1])
+
+    if var.type == "nil":
+        print("", end='')
+    elif var.type == "bool":
+        if var.value == "true":
+            print('\033[92m' + "true"+'\033[0m')
+            # print("true", end='')
+        else:
+            print('\033[92m' + "false"+'\033[0m')
+            # print("true", end='')
+    else:
+        print('\033[92m' + var.value+'\033[0m')
+        # print(var.value, end='')
+
+
+def instr_read(var, type):
+    var1 = var
+    # TODO
+
+
+def instr_exit(symb):
+    var1 = symb
+    if symb.type == "var":
+        tmp = var1.value.split("@")
+        var1 = get_variable(tmp[0], tmp[1])
+
+    if var1.type != "int":
+        print_err_and_exit("Type of symbol is not int", 57)
+
+    if int(var1.value) < 0 or int(var1.value) > 49:
+        print_err_and_exit("Invalid value for exit", 57)
+
+    exit(int(var1.value))
+
+    # TODO vypis statistik
 
     ###############################################################################
 
@@ -905,6 +999,16 @@ def interpret_instruction(instruction):
         instr_setchar(instruction)
     elif instruction.name == "TYPE":
         instr_type(instruction.args[0], instruction.args[1])
+    elif instruction.name == "JUMPIFEQ":
+        instr_jmpeq(instruction)
+    elif instruction.name == "JUMPIFNEQ":
+        instr_jmpneq(instruction)
+    elif instruction.name == "WRITE":
+        instr_write(instruction.args[0])
+    elif instruction.name == "READ":
+        instr_read(instruction.args[0], instruction.args[1])
+    elif instruction.name == "EXIT":
+        instr_exit(instruction.args[0])
 ###############################################################################
 
 
@@ -956,11 +1060,11 @@ for i in instructions:
 
 
 ########################################INTERPRETING###############################################
-print("INTERPRETING--------------")
+print("------------------INTERPRETING---------------------------")
 while position_pointer != len(instructions):
     interpret_instruction(instructions[position_pointer])
     position_pointer += 1
-print("INTERPRETING FINISHED-----")
+print("------------------INTERPRETING FINISHED WITH SUCCESS-----")
 ###################################################################################################
 
 print("LABELS : ", labels)
