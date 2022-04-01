@@ -15,7 +15,8 @@ def debug(s):
 
 DEBUG = False
 
-parser = argparse.ArgumentParser(description='interpret')
+parser = argparse.ArgumentParser(
+    description='Interpret for IPPcode22 by - Tomas Ondrusek - xondru18 - VUT FIT - 4.2022')
 parser.add_argument('--source', dest='source', type=str)
 parser.add_argument('--input', dest='input', type=str)
 args = parser.parse_args()
@@ -25,7 +26,7 @@ inputLines = []
 instructions = list()
 GF = dict()
 orderNumbers = []
-# stack = []
+stack = []
 variablesStorage = {}
 # output = ""
 # outputErr = ""
@@ -92,6 +93,14 @@ def print_lf():
                 print(var, item[var].type, item[var].value)
     except:
         pass
+    debug("------------------------------------------------\n")
+
+
+def print_stack():
+    debug("----------------------------stack------------------")
+    print("\nvariables in stack:")
+    for var in stack:
+        print(var.type, var.value)
     debug("------------------------------------------------\n")
 
 
@@ -922,7 +931,6 @@ def instr_read(var, type):
         var1 = get_variable(tmp[0], tmp[1])
 
     type_var = type.value
-    print(inputLines)
     if len(inputLines) == 0:
         poped = "nil"
         type_var = "nil"
@@ -943,7 +951,6 @@ def instr_read(var, type):
     elif type_var == "nil":
         new_arg = Argument("nil", "nil")
 
-    print(var.value, new_arg.value, poped, inputLines)
     tmp = var.value.split("@")
     find_variable(tmp[0], tmp[1])
     update_variable(tmp[0], tmp[1], new_arg)
@@ -964,6 +971,36 @@ def instr_exit(symb):
     exit(int(var1.value))
 
     # TODO vypis statistik
+
+
+def instr_dprint(symb):
+    var1 = symb
+    if symb.type == "var":
+        tmp = var1.value.split("@")
+        var1 = get_variable(tmp[0], tmp[1])
+    stderr.write(var1.value + "\n")
+
+
+def instr_pushs(symb):
+    var1 = symb
+    if symb.type == "var":
+        tmp = var1.value.split("@")
+        var1 = get_variable(tmp[0], tmp[1])
+
+    new_arg = Variable(var1.type, var1.value)
+    stack.append(new_arg)
+
+
+def instr_pops(var):
+    if len(stack) == 0:
+        print_err_and_exit("Empty stack", 56)
+
+    poped = stack.pop()
+    new_arg = Argument(poped.type, poped.value)
+
+    tmp = var.value.split("@")
+    find_variable(tmp[0], tmp[1])
+    update_variable(tmp[0], tmp[1], new_arg)
 
     ###############################################################################
 
@@ -1038,6 +1075,15 @@ def interpret_instruction(instruction):
         instr_read(instruction.args[0], instruction.args[1])
     elif instruction.name == "EXIT":
         instr_exit(instruction.args[0])
+    elif instruction.name == "BREAK":
+        stderr.write("BREAK on instruction order " +
+                     str(instruction.order) + "\n")
+    elif instruction.name == "DPRINT":
+        instr_dprint(instruction.args[0])
+    elif instruction.name == "PUSHS":
+        instr_pushs(instruction.args[0])
+    elif instruction.name == "POPS":
+        instr_pops(instruction.args[0])
 ###############################################################################
 
 
@@ -1101,3 +1147,4 @@ print("LABELS : ", labels)
 print_gf()
 print_tf()
 print_lf()
+print_stack()
