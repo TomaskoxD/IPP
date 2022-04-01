@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 import argparse
 from operator import concat
+from unittest import case
 # from lxml import etree
 import xml.etree.ElementTree as ET
 import re
@@ -30,8 +31,8 @@ variablesStorage = {}
 # outputErr = ""
 position_pointer = 0
 TF = None
-LFs = list()
-# calls = list()
+LF = list()
+call = list()
 labels = dict()
 
 #####################################CREATING CLASSES##############################################
@@ -60,44 +61,46 @@ class Instruction:
 ###################################################################################################
 
 
-if (sourceFile == "None" and inputFile == "None"):
-    stderr.write("ERROR: --source or --input must be set, exiting...\n")
-    exit(10)
-
-try:
-    if (sourceFile == "None"):
-        debug("reading source from stdin")
-        tree = ET.parse(stdin)
-    else:
-        debug("source: " + sourceFile)
-        tree = ET.parse(args.source)
-except:
-    stderr.write("Wrong XML format, exiting...\n")
-    exit(31)
-
-if (inputFile == "None"):
-    debug("reading input from stdin")
-    for line in stdin:
-        inputLines.append(line)
-else:
-    debug("input: " + inputFile)
-    file = open(inputFile, 'r')
-    Lines = file.readlines()
-    for line in Lines:
-        inputLines.append(line)
-root = tree.getroot()
-
-
 ######################################DEFINING FUNCTIONS###########################################
 
-def printGF():
+def print_gf():
     debug("----------------------------GF------------------")
-    for key, value in GF.items():
-        debug(key+" "+value.type+" "+value.value)
+    print("\nvariables in GF:")
+    for var in GF:
+        print(var, GF[var].type, GF[var].value)
     debug("------------------------------------------------\n")
 
 
+def print_tf():
+    debug("----------------------------GF------------------")
+    print("\nvariables in TF:")
+    try:
+        for var in TF:
+            print(var, TF[var].type, TF[var].value)
+    except:
+        pass
+    debug("------------------------------------------------\n")
+
+
+def print_lf():
+    debug("----------------------------GF------------------")
+    print("\nvariables in LF:")
+    try:
+        for item in LF:
+            for var in item:
+                print(var, item[var].type, item[var].value)
+    except:
+        pass
+    debug("------------------------------------------------\n")
+
+
+def print_err_and_exit(string, ret_code):
+    stderr.write(string + ", exiting...\n")
+    exit(ret_code)
+
 ##############################INSTRUCTION FUNCTIONS############################
+
+
 def filter_instructions():
     try:
         debug("\nFinding instructions--------")
@@ -109,16 +112,15 @@ def filter_instructions():
                 raise
         debug("\n")
     except:
-        stderr.write("Error occured when sorting <instruction>, exiting...\n")
-        exit(32)
+        print_err_and_exit(
+            "Error occured when sorting <instruction>", 32)
     orderNumbers.sort()
 
 
 def sort_instructions():
     debug("Sorting instructions--------")
     if root.tag != 'program':
-        stderr.write("Root tag is not program, exiting...\n")
-        exit(32)
+        print_err_and_exit("Root tag is not program", 32)
 
     # sort <instruction> tags by opcode
     try:
@@ -126,9 +128,8 @@ def sort_instructions():
             child.tag, int(child.get('order'))))
     except Exception as e:
         debug(str(e)+"\n")
-        stderr.write(
-            "Error occured when sorting <instruction> elements, exiting...\n")
-        exit(32)
+        print_err_and_exit(
+            "Error occured when sorting <instruction> elements", 32)
 
     # sort <arg#> elements
     for child in root:
@@ -136,9 +137,8 @@ def sort_instructions():
             child[:] = sorted(child, key=lambda child: (child.tag))
         except Exception as e:
             debug(str(e)+"\n")
-            stderr.write(
-                "Error occured when sorting <arg#> elements, exiting...\n")
-            exit(32)
+            print_err_and_exit(
+                "Error occured when sorting <arg#> elements", 32)
     debug("\n")
 
 
@@ -146,26 +146,24 @@ def check_instructions():
     # XML INNER VALIDITY CHECKS
     # <program> check of correct 'language' attribute
     if not('language' in list(root.attrib.keys())):
-        stderr.write("Unable to find 'language' attribute, exiting...\n")
-        exit(32)
+        print_err_and_exit(
+            "Unable to find 'language' attribute", 32)
 
     if not(re.match(r"ippcode22", root.attrib['language'], re.IGNORECASE)):
-        stderr.write("Wrong 'language' attribute value, exiting...\n")
-        exit(32)
+        print_err_and_exit(
+            "Wrong 'language' attribute value", 32)
 
     # <instruction> checks of tag and correct attributes
     for child in root:
         if child.tag != 'instruction':
-            stderr.write(
-                "First level elements has to be called 'instruction', exiting...\n")
-            exit(32)
+            print_err_and_exit(
+                "First level elements has to be called 'instruction'", 32)
 
         # check correct attributes
         attrib = list(child.attrib.keys())
         if not('order' in attrib) or not('opcode' in attrib):
-            stderr.write(
-                "<instruction> element has to have 'order' & 'opcode' attributes, exiting...\n")
-            exit(32)
+            print_err_and_exit(
+                "<instruction> element has to have 'order' & 'opcode' attributes", 32)
 
     # iterate over <instruction> elements
     for child in root:
@@ -175,22 +173,20 @@ def check_instructions():
             if children.tag not in dup:
                 dup.add(children.tag)
         if len(dup) != len(child):
-            stderr.write("Found duplicate <arg#> elements, exiting...\n")
-            exit(32)
+            print_err_and_exit(
+                "Found duplicate <arg#> elements", 32)
 
         # <arg#> checks
         for children in child:
             if not(re.match(r"arg[123]", children.tag)):
-                stderr.write(
-                    "Only <arg#> where # ranges from 1-3 are supported, exiting...\n")
-                exit(32)
+                print_err_and_exit(
+                    "Only <arg#> where # ranges from 1-3 are supported", 32)
 
             # <arg#> attribute check
             att = list(children.attrib)
             if not('type' in att):
-                stderr.write(
-                    "<arg#> elements has to have 'type' attribute, exiting...\n")
-                exit(32)
+                print_err_and_exit(
+                    "<arg#> elements has to have 'type' attribute", 32)
 
 
 def fill_instructions():
@@ -226,20 +222,17 @@ def save_labels():
 
 def valid_var(var):
     if not(re.match(r"^(GF|LF|TF)@[a-zA-Z_\-$&%*!?][\w_\-$&%*!?]*$", var.value)):
-        stderr.write("Argument is not valid var, exiting...\n")
-        exit(32)
+        print_err_and_exit("Argument is not valid var", 32)
 
 
 def valid_label(var):
     if not(re.match(r"^[\w_\-$&?%*!]+$", var.value)):
-        stderr.write("Argument is not valid var, exiting...\n")
-        exit(32)
+        print_err_and_exit("Argument is not valid var", 32)
 
 
 def valid_type(var):
     if not((re.match(r"^(string|int|bool)$", var.value))):
-        stderr.write("Argument is not valid type, exiting...\n")
-        exit(32)
+        print_err_and_exit("Argument is not valid type", 32)
 
 
 def valid_symb(item):
@@ -248,103 +241,91 @@ def valid_symb(item):
     else:
         if item.type == "int":
             if re.search(r"[^\d-]", item.value):
-                stderr.write("Invalid value for int type, exiting...")
-                exit(32)
+                print_err_and_exit(
+                    "Invalid value for int type", 32)
         elif item.type == "nil":
             if item.value != "nil":
-                stderr.write("Invalid value for nil type, exiting...\n")
-                exit(32)
+                print_err_and_exit(
+                    "Invalid value for nil type", 32)
         elif item.type == "string":
-            if re.match(r"(\\\\[^0-9])|(\\\\[0-9][^0-9])|(\\\\[0-9][0-9][^0-9])|(\\\\$)", item.value):
-                stderr.write(
-                    "Invalid number of digits for escaped character, exiting...\n")
-                exit(32)
+            if item.value != None:
+                if re.match(r"(\\\\[^0-9])|(\\\\[0-9][^0-9])|(\\\\[0-9][0-9][^0-9])|(\\\\$)", item.value):
+                    print_err_and_exit(
+                        "Invalid number of digits for escaped character", 32)
         elif item.type == "bool":
             if not(item.value == "true" or item.value == "false"):
-                stderr.write("Invalid value for bool type, exiting...\n")
-                exit(32)
+                print_err_and_exit(
+                    "Invalid value for bool type", 32)
 ###############################################################################
 
 
 #######################INSTRUCTION CHECK FUNCTIONS#############################
 def check_arg_count(first, second):
     if first != second:
-        stderr.write(
-            "Invalid number of arguments for given instruction, exiting...\n")
-        exit(32)
+        print_err_and_exit(
+            "Invalid number of arguments for given instruction", 32)
 
 
 def check_instruction_var(inst):
     if inst.args[0].type != "var":
-        stderr.write("Invalid arg type, var expected, exiting...\n")
-        exit(32)
+        print_err_and_exit("Invalid arg type, var expected", 32)
     valid_var(inst.args[0])
 
 
 def check_instruction_label(inst):
     if inst.args[0].type != "label":
-        stderr.write("Invalid arg type, label expected, exiting...\n")
-        exit(32)
+        print_err_and_exit(
+            "Invalid arg type, label expected", 32)
     valid_label(inst.args[0])
 
 
 def check_instruction_symb(inst):
     if not(re.match(r"^(var|string|bool|int|nil)$", inst.args[0].type)):
-        stderr.write("Invalid arg type, exiting...\n")
-        exit(32)
+        print_err_and_exit("Invalid arg type", 32)
     valid_symb(inst.args[0])
 
 
 def check_instruction_var_or_symb(inst):
     if inst.args[0].type != "var":
-        stderr.write("Invalid arg type, var expected, exiting...\n")
-        exit(32)
+        print_err_and_exit("Invalid arg type, var expected", 32)
     valid_var(inst.args[0])
     if not(re.match(r"^(var|string|bool|int|nil)$", inst.args[0].type)):
-        stderr.write("Invalid arg type, exiting...\n")
-        exit(32)
+        print_err_and_exit("Invalid arg type", 32)
     valid_symb(inst.args[1])
 
 
 def check_instruction_var_or_type(inst):
     if inst.args[0].type != "var":
-        stderr.write("Invalid arg type, var expected, exiting...\n")
-        exit(32)
+        print_err_and_exit("Invalid arg type, var expected", 32)
     valid_var(inst.args[0])
     if not(re.match(r"^(string|bool|int)$", inst.args[1].type)):
-        stderr.write(
-            "Invalid arg type, string, bool or int expected, exiting...\n")
-        exit(32)
+        print_err_and_exit(
+            "Invalid arg type, string, bool or int expected", 32)
     valid_type(inst.args[1])
 
 
 def check_instruction_label_or_symb(inst):
     if inst.args[0].type != "label":
-        stderr.write("Invalid arg type, label expected, exiting...\n")
-        exit(32)
+        print_err_and_exit(
+            "Invalid arg type, label expected", 32)
     valid_label(inst.args[0])
     if not(re.match(r"^(var|string|bool|int|nil)$", inst.args[1].type)):
-        stderr.write("Invalid arg type, exiting...\n")
-        exit(32)
+        print_err_and_exit("Invalid arg type", 32)
     valid_symb(inst.args[1])
     if not(re.match(r"^(var|string|bool|int|nil)$", inst.args[2].type)):
-        stderr.write("Invalid arg type, exiting...\n")
-        exit(32)
+        print_err_and_exit("Invalid arg type", 32)
     valid_symb(inst.args[2])
 
 
 def check_instruction_var_or_symbol(inst):
     if inst.args[0].type != "var":
-        stderr.write("Invalid arg type, var expected, exiting...\n")
-        exit(32)
+        print_err_and_exit("Invalid arg type, var expected", 32)
     valid_var(inst.args[0])
     if not(re.match(r"^(var|string|bool|int|nil)$", inst.args[1].type)):
-        stderr.write("Invalid arg type, exiting...\n")
-        exit(32)
+        print_err_and_exit("Invalid arg type", 32)
     valid_symb(inst.args[1])
     if not(re.match(r"^(var|string|bool|int|nil)$", inst.args[1].type)):
-        stderr.write("Invalid arg type, exiting...\n")
-        exit(32)
+        print_err_and_exit("Invalid arg type", 32)
     valid_symb(inst.args[2])
 
 
@@ -409,45 +390,555 @@ def check_instruction(instruction):
         check_arg_count(3, len(instruction.args))
         check_instruction_var_or_symbol(instruction)
     else:
-        stderr.write("Invalid instruction name, exiting...\n")
-        exit(32)
+        print_err_and_exit("Invalid instruction name", 32)
 ###############################################################################
 
 
 #############################MEMORY FUNCTIONS##################################
-# TODO
+def get_variable(frame, var_name):
+    global TF
+    global LF
+    if frame == "GF":
+        if not var_name in GF.keys():
+            print_err_and_exit("Non existing variable", 54)
+        return GF[var_name]
+    elif frame == "TF":
+        if TF == None:
+            print_err_and_exit("TF not initialized", 55)
+        if not var_name in TF.keys():
+            print_err_and_exit("Non existing variable", 54)
+        return TF[var_name]
+    elif frame == "LF":
+        if len(LF) == 0:
+            print_err_and_exit("No frame in LFs stack", 55)
+        if not var_name in LF[len(LF)-1].keys():
+            print_err_and_exit("Non existing variable", 54)
+        return LF[len(LF)-1][var_name]
+    else:
+        print_err_and_exit("Not supported frame found", 99)
+
+
+def find_variable(frame, var_name):
+    if frame == "GF":
+        if not(var_name in GF.keys()):
+            print_err_and_exit("Non existing variable", 54)
+    elif frame == "TF":
+        if TF == None:
+            print_err_and_exit("TF not initialized", 55)
+        if not(var_name in TF.keys()):
+            print_err_and_exit("Non existing variable", 54)
+    elif frame == "LF":
+        if len(LF) == 0:
+            print_err_and_exit("No frame in LF stack", 55)
+        if not(var_name in LF[len(LF)-1].keys()):
+            print_err_and_exit("Non existing variable", 54)
+    else:
+        print_err_and_exit("Not supported frame found", 99)
+
+
+def update_variable(frame, var_name, argument):
+    if re.match(r"(int|bool|string|nil)", argument.type):
+        if frame == "GF":
+            GF[var_name] = Variable(argument.type, argument.value)
+        elif frame == "TF":
+            if TF == None:
+                print_err_and_exit("TF not initialized", 55)
+            TF[var_name] = Variable(argument.type, argument.value)
+        elif frame == "LF":
+            if len(LF) == 0:
+                print_err_and_exit("No frame in LF stack", 55)
+            LF[len(LF)-1][var_name] = Variable(argument.type, argument.value)
+        else:
+            print_err_and_exit("Unsupported frame passed", 55)
+    elif argument.type == "var":
+        tmp = argument.value.split("@")
+        find_variable(tmp[0], tmp[1])
+        hold = get_variable(tmp[0], tmp[1])
+        if frame == "GF":
+            GF[var_name] = Variable(hold.type, hold.value)
+        elif frame == "TF":
+            if TF == None:
+                print_err_and_exit("TF not initialized", 55)
+            TF[var_name] = Variable(hold.type, hold.value)
+        elif frame == "LF":
+            if len(LF) == 0:
+                print_err_and_exit("No frame in LF stack", 55)
+            LF[len(LF)-1][var_name] = Variable(hold.type, hold.value)
+        else:
+            print_err_and_exit("Unsupported frame passed", 55)
+
+    else:
+        print_err_and_exit(
+            "Unexpected error when saving to variable", 99)
 ###############################################################################
 
+#####################INTERPRET INSTRUCTION FUNCTIONS###########################
 
-############################INTERPRET FUNCTION#################################
+
+def instr_defvar(var):
+    splitted = var.value.split("@")
+    tmp = Variable(None, None)
+    if splitted[0] == "GF":
+        if splitted[1] in GF.keys():
+            print_err_and_exit("Variable already exists", 52)
+        GF.update({splitted[1]: tmp})
+    elif splitted[0] == "TF":
+        if TF == None:
+            print_err_and_exit("TF not initialized", 52)
+        if splitted[1] in TF.keys():
+            print_err_and_exit("Variable already exists", 52)
+        TF.update({splitted[1]: tmp})
+    elif splitted[0] == "LF":
+        if len(LF) == 0:
+            print_err_and_exit("No LF in stack", 52)
+        if splitted[1] in LF[len(LF)-1].keys():
+            print_err_and_exit("Variable already exists", 52)
+        LF[len(LF)-1].update({splitted[1]: tmp})
+
+
+def instr_call(argument, current_pos):
+    global position_pointer
+    call.append(current_pos)
+    if not(argument.value in labels.keys()):
+        print_err_and_exit("Label does not exist", 52)
+    position_pointer = int(labels[argument.value]-1)
+
+
+def instr_return():
+    global position_pointer
+    if len(call) == 0:
+        print_err_and_exit(
+            "Return without call", 56)
+    pos = call.pop()
+    position_pointer = int(pos-1)
+
+
+def instr_aritmetic(instruction):
+    var1 = instruction.args[0]
+    var2 = instruction.args[1]
+    var3 = instruction.args[2]
+
+    if var2.type == "var":
+        tmp = var2.value.split("@")
+        var2 = get_variable(tmp[0], tmp[1])
+    if var3.type == "var":
+        tmp = var3.value.split("@")
+        var3 = get_variable(tmp[0], tmp[1])
+
+    if var2.type != "int" or var3.type != "int":
+        print_err_and_exit("Arguments has to be of type int", 53)
+
+    if instruction.name == "ADD":
+        new_arg = Argument("int", int(var2.value) + int(var3.value))
+    elif instruction.name == "SUB":
+        new_arg = Argument("int", int(var2.value) - int(var3.value))
+    elif instruction.name == "MUL":
+        new_arg = Argument("int", int(var2.value) * int(var3.value))
+    elif instruction.name == "IDIV":
+        if int(var3.value) == 0:
+            print_err_and_exit("Division by 0", 57)
+        new_arg = Argument("int", int(var2.value) // int(var3.value))
+
+    tmp = var1.value.split("@")
+    find_variable(tmp[0], tmp[1])
+    update_variable(tmp[0], tmp[1], new_arg)
+
+
+def instr_boolean(instruction):
+    var1 = instruction.args[0]
+    var2 = instruction.args[1]
+    try:
+        var3 = instruction.args[2]
+        if var3.type == "var":
+            tmp = var3.value.split("@")
+        var3 = get_variable(tmp[0], tmp[1])
+    except:
+        pass
+
+    if var2.type == "var":
+        tmp = var2.value.split("@")
+        var2 = get_variable(tmp[0], tmp[1])
+
+    if var2.type != "bool" or var3.type != "bool":
+        print_err_and_exit("Arguments has to be of type bool", 53)
+
+    if instruction.name == "AND":
+        if var2.value == "false" or var3.value == "false":
+            new_arg = Argument("bool", "false")
+        else:
+            new_arg = Argument("bool", "true")
+    elif instruction.name == "OR":
+        if var2.value == "false" and var3.value == "false":
+            new_arg = Argument("bool", "false")
+        else:
+            new_arg = Argument("bool", "true")
+    elif instruction.name == "NOT":
+        if var2.value == "false":
+            new_arg = Argument("bool", "true")
+        else:
+            new_arg = Argument("bool", "false")
+
+    tmp = var1.value.split("@")
+    find_variable(tmp[0], tmp[1])
+    update_variable(tmp[0], tmp[1], new_arg)
+
+
+def instr_relational(instruction):
+    var1 = instruction.args[0]
+    var2 = instruction.args[1]
+    var3 = instruction.args[2]
+
+    if var2.type == "var":
+        tmp = var2.value.split("@")
+        var2 = get_variable(tmp[0], tmp[1])
+    if var3.type == "var":
+        tmp = var3.value.split("@")
+        var3 = get_variable(tmp[0], tmp[1])
+
+    if var2.type == "int" and var3.type != "int":
+        print_err_and_exit("Arguments has to be of same type", 53)
+    if var2.type == "bool" and var3.type != "bool":
+        print_err_and_exit("Arguments has to be of same type", 53)
+    if var2.type == "string" and var3.type != "string":
+        print_err_and_exit("Arguments has to be of same type", 53)
+
+    if instruction.name == "GT":
+        if var2.type == "int":
+            if int(var2.value) > int(var3.value):
+                new_arg = Argument("bool", "true")
+            else:
+                new_arg = Argument("bool", "false")
+        elif var2.type == "bool":
+            if var2.value == "true" and var3.value == "false":
+                new_arg = Argument("bool", "true")
+            else:
+                new_arg = Argument("bool", "false")
+        elif var2.type == "string":
+            if var2.value > var3.value:
+                new_arg = Argument("bool", "true")
+            else:
+                new_arg = Argument("bool", "false")
+        elif var2.type == "nil" or var3.type == "nil":
+            print_err_and_exit(
+                "Argument can not be nil while performing GT", 53)
+    elif instruction.name == "LT":
+        if var2.type == "int":
+            if int(var2.value) < int(var3.value):
+                new_arg = Argument("bool", "true")
+            else:
+                new_arg = Argument("bool", "false")
+        elif var2.type == "bool":
+            if var2.value == "false" and var3.value == "true":
+                new_arg = Argument("bool", "true")
+            else:
+                new_arg = Argument("bool", "false")
+        elif var2.type == "string":
+            if var2.value < var3.value:
+                new_arg = Argument("bool", "true")
+            else:
+                new_arg = Argument("bool", "false")
+        elif var2.type == "nil" or var3.type == "nil":
+            print_err_and_exit(
+                "Argument can not be nil while performing LT", 53)
+
+    elif instruction.name == "EQ":
+        if var2.type == "int":
+            if int(var2.value) == int(var3.value):
+                new_arg = Argument("bool", "true")
+            else:
+                new_arg = Argument("bool", "false")
+        elif var2.type == "bool":
+            if var2.value == var3.value:
+                new_arg = Argument("bool", "true")
+            else:
+                new_arg = Argument("bool", "false")
+        elif var2.type == "string":
+            if var2.value == var3.value:
+                new_arg = Argument("bool", "true")
+            else:
+                new_arg = Argument("bool", "false")
+        elif var2.type == "nil" or var3.type == "nil":
+            if var2.value == var3.value:
+                new_arg = Argument("bool", "true")
+            else:
+                new_arg = Argument("bool", "false")
+
+    tmp = var1.value.split("@")
+    find_variable(tmp[0], tmp[1])
+    update_variable(tmp[0], tmp[1], new_arg)
+
+
+def instr_int_to_char(var, symb):
+    var1 = symb
+    if symb.type == "var":
+        tmp = var1.value.split("@")
+        var1 = get_variable(tmp[0], tmp[1])
+    print(var.value, var1.value)
+    if var1.type != "int":
+        print_err_and_exit(
+            "Argument has to be of type int to be converted to char", 53)
+
+    try:
+        new_val = chr(int(var1.value))
+    except:
+        print_err_and_exit("Error while converting int to string", 58)
+    new_arg = Argument("string", new_val)
+
+    tmp = var.value.split("@")
+    find_variable(tmp[0], tmp[1])
+    update_variable(tmp[0], tmp[1], new_arg)
+
+
+def instr_string_to_int(instruction):
+    var1 = instruction.args[0]
+    var2 = instruction.args[1]
+    var3 = instruction.args[2]
+
+    if var2.type == "var":
+        tmp = var2.value.split("@")
+        var2 = get_variable(tmp[0], tmp[1])
+    if var3.type == "var":
+        tmp = var3.value.split("@")
+        var3 = get_variable(tmp[0], tmp[1])
+
+    if var2.type != "string":
+        print_err_and_exit("Arguments has to be of type string", 53)
+    if var3.type != "int":
+        print_err_and_exit("Arguments has to be of type int", 53)
+    if var2.value == None or int(var3.value) >= len(var2.value) or int(var3.value) < 0:
+        print_err_and_exit("Index out of range", 58)
+
+    new_arg = Argument("int", ord(var2.value[int(var3.value)]))
+
+    tmp = var1.value.split("@")
+    find_variable(tmp[0], tmp[1])
+    update_variable(tmp[0], tmp[1], new_arg)
+
+
+def instr_strlen(var, symb):
+    var1 = symb
+    if symb.type == "var":
+        tmp = var1.value.split("@")
+        var1 = get_variable(tmp[0], tmp[1])
+    print(var.value, var1.value)
+    if var1.type != "string":
+        print_err_and_exit(
+            "Argument has to be of type string to find its length", 53)
+
+    if var1.value == None:
+        new_arg = Argument("int", 0)
+    else:
+        new_arg = Argument("int", len(var1.value))
+
+    tmp = var.value.split("@")
+    find_variable(tmp[0], tmp[1])
+    update_variable(tmp[0], tmp[1], new_arg)
+
+
+def instr_concat(instruction):
+    var1 = instruction.args[0]
+    var2 = instruction.args[1]
+    var3 = instruction.args[2]
+
+    if var2.type == "var":
+        tmp = var2.value.split("@")
+        var2 = get_variable(tmp[0], tmp[1])
+    if var3.type == "var":
+        tmp = var3.value.split("@")
+        var3 = get_variable(tmp[0], tmp[1])
+
+    if var2.type != "string":
+        print_err_and_exit(
+            "Arguments has to be of type string to concatenate", 53)
+    if var3.type != "string":
+        print_err_and_exit(
+            "Arguments has to be of type string to concatenate", 53)
+    if var2.value == None:
+        new_arg = Argument("string", var3.value)
+    elif var3.value == None:
+        new_arg = Argument("string", var2.value)
+    else:
+        new_arg = Argument("string", var2.value + var3.value)
+
+    tmp = var1.value.split("@")
+    find_variable(tmp[0], tmp[1])
+    update_variable(tmp[0], tmp[1], new_arg)
+
+
+def instr_getchar(instruction):
+    var1 = instruction.args[0]
+    var2 = instruction.args[1]
+    var3 = instruction.args[2]
+
+    if var2.type == "var":
+        tmp = var2.value.split("@")
+        var2 = get_variable(tmp[0], tmp[1])
+    if var3.type == "var":
+        tmp = var3.value.split("@")
+        var3 = get_variable(tmp[0], tmp[1])
+
+    if var2.type != "string":
+        print_err_and_exit("Arguments has to be of type string", 53)
+    if var3.type != "int":
+        print_err_and_exit("Arguments has to be of type int", 53)
+    if var2.value == None or int(var3.value) >= len(var2.value) or int(var3.value) < 0:
+        print_err_and_exit("Index out of range", 58)
+
+    new_arg = Argument("string", var2.value[int(var3.value)])
+
+    tmp = var1.value.split("@")
+    find_variable(tmp[0], tmp[1])
+    update_variable(tmp[0], tmp[1], new_arg)
+
+
+def instr_setchar(instruction):
+    var = instruction.args[0]
+    var1 = instruction.args[0]
+    var2 = instruction.args[1]
+    var3 = instruction.args[2]
+
+    if var1.type == "var":
+        tmp = var1.value.split("@")
+        var1 = get_variable(tmp[0], tmp[1])
+    if var2.type == "var":
+        tmp = var2.value.split("@")
+        var2 = get_variable(tmp[0], tmp[1])
+    if var3.type == "var":
+        tmp = var3.value.split("@")
+        var3 = get_variable(tmp[0], tmp[1])
+
+    if var1.type != "string":
+        print_err_and_exit("Arguments has to be of type strinnnng", 53)
+    if var2.type != "int":
+        print_err_and_exit("Arguments has to be of type int", 53)
+    if var3.type != "string":
+        print_err_and_exit("Arguments has to be of type striiiing", 53)
+    if var1.value == None or int(var2.value) >= len(var1.value) or int(var2.value) < 0:
+        print_err_and_exit("Index out of range", 58)
+
+    if var3.value == None:
+        print_err_and_exit("Can not change string with empty character", 58)
+    new_var = var1.value[:int(var2.value)] + \
+        var3.value[0] + var1.value[int(var2.value)+1:]
+    print(new_var, var3.value[0])
+
+    new_arg = Argument("string", new_var)
+
+    tmp = var.value.split("@")
+    find_variable(tmp[0], tmp[1])
+    update_variable(tmp[0], tmp[1], new_arg)
+
+
+def instr_type(var, symb):
+    var1 = symb
+    if symb.type == "var":
+        tmp = var1.value.split("@")
+        var1 = get_variable(tmp[0], tmp[1])
+    print(var.value, var1.value)
+
+    new_arg = Argument("string", var1.type)
+
+    tmp = var.value.split("@")
+    find_variable(tmp[0], tmp[1])
+    update_variable(tmp[0], tmp[1], new_arg)
+
+    ###############################################################################
+
+    ############################INTERPRET FUNCTION#################################
+
+
 def interpret_instruction(instruction):
 
     global position_pointer
     global TF
-    global LFs
-    print(position_pointer, instruction.name, instruction.args[0].value)
+    global LF
+    try:
+        print(position_pointer, instruction.name)
+    except:
+        pass
     if instruction.name == "CREATEFRAME":
         TF = dict()
     elif instruction.name == "PUSHFRAME":
-        LFs.append(TF)
+        if TF == None:
+            print_err_and_exit(
+                "TF not initialized for pushing to LF", 55)
+        LF.append(TF)
         TF = None
     elif instruction.name == "POPFRAME":
-        if LFs.count == 0:
-            stderr.write("Non existing frame in LF, exiting...\n")
-            exit(55)
-        TF = LFs.pop()
+        if len(LF) == 0:
+            print_err_and_exit("Non existing frame in LF", 55)
+        TF = LF.pop()
     elif instruction.name == "LABEL":
         pass
     elif instruction.name == "JUMP":
         labelName = instruction.args[0].value
         if not(labelName in labels.keys()):
-            stderr.write("Label does not exist, exiting...\n")
-            exit(52)
+            print_err_and_exit("Label does not exist", 52)
         position_pointer = int(labels[labelName]-1)
+    elif instruction.name == "DEFVAR":
+        instr_defvar(instruction.args[0])
+    elif instruction.name == "MOVE":
+        splittedVar = instruction.args[0].value.split("@")
+        find_variable(splittedVar[0], splittedVar[1])
+        update_variable(splittedVar[0], splittedVar[1], instruction.args[1])
+    elif instruction.name == "CALL":
+        instr_call(instruction.args[0], instruction.number)
+    elif instruction.name == "RETURN":
+        instr_return()
+    elif instruction.name == "ADD" or instruction.name == "SUB" or instruction.name == "MUL" or instruction.name == "IDIV":
+        instr_aritmetic(instruction)
+    elif instruction.name == "AND" or instruction.name == "OR" or instruction.name == "NOT":
+        instr_boolean(instruction)
+    elif instruction.name == "LT" or instruction.name == "GT" or instruction.name == "EQ":
+        instr_relational(instruction)
+    elif instruction.name == "INT2CHAR":
+        instr_int_to_char(instruction.args[0], instruction.args[1])
+    elif instruction.name == "STRI2INT":
+        instr_string_to_int(instruction)
+    elif instruction.name == "STRLEN":
+        instr_strlen(instruction.args[0], instruction.args[1])
+    elif instruction.name == "CONCAT":
+        instr_concat(instruction)
+    elif instruction.name == "GETCHAR":
+        instr_getchar(instruction)
+    elif instruction.name == "SETCHAR":
+        instr_setchar(instruction)
+    elif instruction.name == "TYPE":
+        instr_type(instruction.args[0], instruction.args[1])
 ###############################################################################
 
 
 ###################################################################################################
+
+
+##################################SOURCE FILES HANDLING############################################
+if (sourceFile == "None" and inputFile == "None"):
+    print_err_and_exit(
+        "ERROR: --source or --input must be set", 10)
+
+try:
+    if (sourceFile == "None"):
+        debug("reading source from stdin")
+        tree = ET.parse(stdin)
+    else:
+        debug("source: " + sourceFile)
+        tree = ET.parse(args.source)
+except:
+    print_err_and_exit("Wrong XML format", 31)
+
+if (inputFile == "None"):
+    debug("reading input from stdin")
+    for line in stdin:
+        inputLines.append(line)
+else:
+    debug("input: " + inputFile)
+    file = open(inputFile, 'r')
+    Lines = file.readlines()
+    for line in Lines:
+        inputLines.append(line)
+root = tree.getroot()
+###################################################################################################
+
 
 ###################CALLING FUNCTIONS FOR PREPARING AND CHECKING XML################################
 filter_instructions()
@@ -474,4 +965,6 @@ print("INTERPRETING FINISHED-----")
 
 print("LABELS : ", labels)
 
-printGF()
+print_gf()
+print_tf()
+print_lf()
