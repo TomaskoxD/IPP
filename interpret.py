@@ -26,16 +26,12 @@ inputLines = []
 instructions = list()
 GF = dict()
 orderNumbers = []
-# stack = []
-variablesStorage = {}
-# output = ""
-# outputErr = ""
 position_pointer = 0
 TF = None
 LF = list()
 call = list()
 labels = dict()
-
+vars = 0
 insts = 0
 
 #####################################CREATING CLASSES##############################################
@@ -77,11 +73,55 @@ class Stack:
     def pop(self):
         return self.item.pop()
 
-    def ret1(self):
-        return 1
 
-    def ret0(self):
-        return 0
+class HotInst:
+    def __init__(self, name, order):
+        self.name = name
+        self.order = order
+        self.count = 1
+
+    def get_order(self):
+        return self.order
+
+    def inc_count(self):
+        self.count = self.count + 1
+
+    def min_ord(self, order):
+        if self.order > order:
+            self.order = order
+
+    def print_hot(self):
+        print("Meno: ", self.name, " order: ",
+              self.order, " count: ", self.count)
+
+
+class Hot:
+    def __init__(self):
+        self.insts = []
+
+    def add(self, name, order):
+        found = False
+        for instr in self.insts:
+            if instr.name == name:
+                found = True
+        if found:
+            for instr in self.insts:
+                if instr.name == name:
+                    instr.inc_count()
+                    instr.min_ord(order)
+        else:
+            self.insts.append(HotInst(name, order))
+
+    def print_my(self):
+        for instr in self.insts:
+            print(instr.name, instr.order, instr.count)
+
+    def get_hottest(self):
+        ins = self.insts[0]
+        for instr in self.insts:
+            if ins.count < instr.count:
+                ins = instr
+        return ins
 
 
 ###################################################################################################
@@ -131,6 +171,20 @@ def print_stack():
         print(var.type, var.value)
     print("******************************")
     debug("------------------------------------------------\n")
+
+
+def get_vars_count():
+    counter = len(GF)
+    try:
+        counter += len(TF)
+    except:
+        pass
+    try:
+        for item in LF:
+            counter += len(item)
+    except:
+        pass
+    return counter
 
 
 def print_err_and_exit(string, ret_code):
@@ -937,7 +991,7 @@ def instr_jmpeq(instruction):
     if (str(var2.value) == str(var3.value)):
         if not(var1 in labels.keys()):
             print_err_and_exit("Label does not exist in jumpifeq", 52)
-        position_pointer = int(labels[var1]-1)
+        position_pointer = int(labels[var1]-2)
 
 
 def instr_jmpneq(instruction):
@@ -958,7 +1012,7 @@ def instr_jmpneq(instruction):
     if (str(var2.value) != str(var3.value)):
         if not(var1 in labels.keys()):
             print_err_and_exit("Label does not exist in jumpifneq", 52)
-        position_pointer = int(labels[var1]-1)
+        position_pointer = int(labels[var1]-2)
 
 
 def instr_write(symb):
@@ -1092,7 +1146,6 @@ def instr_aritmetic_s(name):
 
 
 def instr_relational_s(name):
-    print("SOM TU", name)
     if stack.is_empty() == True:
         print_err_and_exit("Stack is empty", 56)
     var2 = stack.pop()
@@ -1160,7 +1213,7 @@ def instr_relational_s(name):
             else:
                 new_var = Variable("bool", "false")
         elif var2.type == "string":
-            if var2.value == var2.value:
+            if var1.value == var2.value:
                 new_var = Variable("bool", "true")
             else:
                 new_var = Variable("bool", "false")
@@ -1259,7 +1312,7 @@ def instr_jmpeq_s(label):
     if (str(var1.value) == str(var2.value)):
         if not(label in labels.keys()):
             print_err_and_exit("Label does not exist in jumpifeq", 52)
-        position_pointer = int(labels[label]-1)
+        position_pointer = int(labels[label]-2)
 
 
 def instr_jmpneq_s(label):
@@ -1277,7 +1330,7 @@ def instr_jmpneq_s(label):
     if (str(var1.value) != str(var2.value)):
         if not(label in labels.keys()):
             print_err_and_exit("Label does not exist in jumpifeq", 52)
-        position_pointer = int(labels[label]-1)
+        position_pointer = int(labels[label]-2)
     ###############################################################################
 
     ############################INTERPRET FUNCTION#################################
@@ -1310,7 +1363,7 @@ def interpret_instruction(instruction):
         labelName = instruction.args[0].value
         if not(labelName in labels.keys()):
             print_err_and_exit("Label does not exist", 52)
-        position_pointer = int(labels[labelName]-1)
+        position_pointer = int(labels[labelName]-2)
     elif instruction.name == "DEFVAR":
         instr_defvar(instruction.args[0])
     elif instruction.name == "MOVE":
@@ -1426,10 +1479,16 @@ for i in instructions:
 
 ########################################INTERPRETING###############################################
 print("------------------INTERPRETING---------------------------")
+hot = Hot()
 while position_pointer != len(instructions):
+    hot.add(instructions[position_pointer].name,
+            instructions[position_pointer].order)
     interpret_instruction(instructions[position_pointer])
+    if get_vars_count() > vars:
+        vars = get_vars_count()
     position_pointer += 1
     insts += 1
+
 print("------------------INTERPRETING FINISHED WITH SUCCESS-----")
 ###################################################################################################
 
@@ -1441,3 +1500,9 @@ print_tf()
 print_lf()
 print_stack()
 print("INSTS - ", insts)
+print("HOT   -  ", end='')
+var = hot.get_hottest()
+var.print_hot()
+# print(var.get_order())
+# hot.print_my()
+print("VARS  - ", vars)
