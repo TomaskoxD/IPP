@@ -26,7 +26,7 @@ inputLines = []
 instructions = list()
 GF = dict()
 orderNumbers = []
-stack = []
+# stack = []
 variablesStorage = {}
 # output = ""
 # outputErr = ""
@@ -35,6 +35,8 @@ TF = None
 LF = list()
 call = list()
 labels = dict()
+
+insts = 0
 
 #####################################CREATING CLASSES##############################################
 
@@ -60,47 +62,74 @@ class Instruction:
 
     def addArgument(self, argType, value):
         self.args.append(Argument(argType, value))
-###################################################################################################
 
+
+class Stack:
+    def __init__(self):
+        self.item = []
+
+    def is_empty(self):
+        return self.item == []
+
+    def push(self, data):
+        self.item.append(data)
+
+    def pop(self):
+        return self.item.pop()
+
+    def ret1(self):
+        return 1
+
+    def ret0(self):
+        return 0
+
+
+###################################################################################################
+stack = Stack()
 
 ######################################DEFINING FUNCTIONS###########################################
 
+
 def print_gf():
     debug("----------------------------GF------------------")
-    print("\nvariables in GF:")
+    print('\033[96m' + "\nvariables in GF:" + '\033[0m')
     for var in GF:
         print(var, GF[var].type, GF[var].value)
+    print("******************************")
     debug("------------------------------------------------\n")
 
 
 def print_tf():
-    debug("----------------------------GF------------------")
-    print("\nvariables in TF:")
+    debug("----------------------------TF------------------")
+    print('\033[96m' + "\nvariables in TF:" + '\033[0m')
     try:
         for var in TF:
             print(var, TF[var].type, TF[var].value)
     except:
         pass
+    print("******************************")
     debug("------------------------------------------------\n")
 
 
 def print_lf():
-    debug("----------------------------GF------------------")
-    print("\nvariables in LF:")
+    debug("----------------------------LF------------------")
+    print('\033[96m' + "\nvariables in LF:" + '\033[0m')
     try:
         for item in LF:
             for var in item:
                 print(var, item[var].type, item[var].value)
     except:
         pass
+    print("******************************")
     debug("------------------------------------------------\n")
 
 
 def print_stack():
     debug("----------------------------stack------------------")
-    print("\nvariables in stack:")
-    for var in stack:
+    print('\033[96m' + "\nvariables in stack:" + '\033[0m')
+    for var in stack.item:
         print(var.type, var.value)
+    print("******************************")
     debug("------------------------------------------------\n")
 
 
@@ -220,10 +249,21 @@ def fill_instructions():
                 debug(tab+subelem.attrib['type']+tab+subelem.text)
             except:
                 debug(tab+subelem.attrib['type'])
-
-            instructions[iCount-1].addArgument(
-                subelem.attrib['type'].lower(), subelem.text
-            )
+            if subelem.attrib['type'].lower() == "string":
+                string = subelem.text
+                try:
+                    escaped = re.findall("\\\\\d\d\d", string)
+                    for escape_sequence in escaped:
+                        string = string.replace(escape_sequence, chr(
+                                                int(escape_sequence.lstrip('\\'))))
+                except:
+                    pass
+                instructions[iCount-1].addArgument(
+                    subelem.attrib['type'].lower(), string)
+            else:
+                instructions[iCount-1].addArgument(
+                    subelem.attrib['type'].lower(), subelem.text
+                )
         iCount += 1
 ###############################################################################
 
@@ -233,7 +273,10 @@ def save_labels():
     # save labels
     for i in instructions:
         if i.name == "LABEL":
-            labels.update({i.args[0].value: i.number})
+            if i.args[0].value in labels:
+                print_err_and_exit("Duplicite label found", 52)
+            else:
+                labels.update({i.args[0].value: i.number})
 
 
 def valid_var(var):
@@ -353,12 +396,28 @@ def check_instruction(instruction):
             instruction.name == "PUSHFRAME" or
             instruction.name == "POPFRAME" or
             instruction.name == "RETURN" or
-            instruction.name == "BREAK"):
+            instruction.name == "BREAK" or
+            instruction.name == "CLEARS" or
+            instruction.name == "ADDS" or
+            instruction.name == "SUBS" or
+            instruction.name == "MULS" or
+            instruction.name == "IDIVS" or
+            instruction.name == "LTS" or
+            instruction.name == "GTS" or
+            instruction.name == "EQS" or
+            instruction.name == "ANDS" or
+            instruction.name == "ORS" or
+            instruction.name == "NOTS" or
+            instruction.name == "INT2CHARS" or
+            instruction.name == "STRI2INTS"
+    ):
         check_arg_count(0, len(instruction.args))
     elif (
             instruction.name == "LABEL" or
             instruction.name == "JUMP" or
-            instruction.name == "CALL"):
+            instruction.name == "CALL" or
+            instruction.name == "JUMPIFEQS" or
+            instruction.name == "JUMPIFNEQS"):
         check_arg_count(1, len(instruction.args))
         check_instruction_label(instruction)
     elif (
@@ -379,6 +438,7 @@ def check_instruction(instruction):
     elif (
             instruction.name == "MOVE" or
             instruction.name == "NOT" or
+            instruction.name == "NOTS" or
             instruction.name == "INT2CHAR" or
             instruction.name == "STRLEN" or
             instruction.name == "TYPE"):
@@ -500,13 +560,13 @@ def instr_defvar(var):
         GF.update({splitted[1]: tmp})
     elif splitted[0] == "TF":
         if TF == None:
-            print_err_and_exit("TF not initialized", 52)
+            print_err_and_exit("TF not initialized", 55)
         if splitted[1] in TF.keys():
             print_err_and_exit("Variable already exists", 52)
         TF.update({splitted[1]: tmp})
     elif splitted[0] == "LF":
         if len(LF) == 0:
-            print_err_and_exit("No LF in stack", 52)
+            print_err_and_exit("No LF in stack", 55)
         if splitted[1] in LF[len(LF)-1].keys():
             print_err_and_exit("Variable already exists", 52)
         LF[len(LF)-1].update({splitted[1]: tmp})
@@ -850,7 +910,10 @@ def instr_type(var, symb):
         tmp = var1.value.split("@")
         var1 = get_variable(tmp[0], tmp[1])
 
-    new_arg = Argument("string", var1.type)
+    if var1.type == None:
+        new_arg = Argument("string", '')
+    else:
+        new_arg = Argument("string", var1.type)
 
     tmp = var.value.split("@")
     find_variable(tmp[0], tmp[1])
@@ -862,7 +925,6 @@ def instr_jmpeq(instruction):
     var1 = instruction.args[0].value
     var2 = instruction.args[1]
     var3 = instruction.args[2]
-
     if var2.type == "var":
         tmp = var2.value.split("@")
         var2 = get_variable(tmp[0], tmp[1])
@@ -870,12 +932,9 @@ def instr_jmpeq(instruction):
         tmp = var3.value.split("@")
         var3 = get_variable(tmp[0], tmp[1])
 
-    if (var2.type != var3.type):
-        if (var2.type == "nil" or var3.type == "nil"):
-            return
+    if (var2.type != var3.type and var2.type == "nil" and var3.type == "nil"):
         print_err_and_exit("Variables are of different type", 53)
-
-    if (var2.value == var3.value):
+    if (str(var2.value) == str(var3.value)):
         if not(var1 in labels.keys()):
             print_err_and_exit("Label does not exist in jumpifeq", 52)
         position_pointer = int(labels[var1]-1)
@@ -894,11 +953,9 @@ def instr_jmpneq(instruction):
         tmp = var3.value.split("@")
         var3 = get_variable(tmp[0], tmp[1])
 
-    if (var2.type != var3.type):
-        if (var2.type == "nil" or var3.type == "nil"):
-            return
+    if (var2.type != var3.type and var2.type == "nil" and var3.type == "nil"):
         print_err_and_exit("Variables are of different type", 53)
-    if (var2.value != var3.value):
+    if (str(var2.value) != str(var3.value)):
         if not(var1 in labels.keys()):
             print_err_and_exit("Label does not exist in jumpifneq", 52)
         position_pointer = int(labels[var1]-1)
@@ -912,6 +969,8 @@ def instr_write(symb):
 
     if var.type == "nil":
         print("", end='')
+    elif var.type == None:
+        print_err_and_exit("Unitialized variable", 56)
     elif var.type == "bool":
         if var.value == "true":
             print('\033[92m' + "true"+'\033[0m')
@@ -920,7 +979,7 @@ def instr_write(symb):
             print('\033[92m' + "false"+'\033[0m')
             # print("true", end='')
     else:
-        print('\033[92m' + var.value+'\033[0m')
+        print('\033[92m' + str(var.value)+'\033[0m')
         # print(var.value, end='')
 
 
@@ -981,19 +1040,21 @@ def instr_dprint(symb):
     stderr.write(var1.value + "\n")
 
 
+#################STACK INSTRUCTIONS############################################
+
 def instr_pushs(symb):
     var1 = symb
     if symb.type == "var":
         tmp = var1.value.split("@")
         var1 = get_variable(tmp[0], tmp[1])
 
-    new_arg = Variable(var1.type, var1.value)
-    stack.append(new_arg)
+    new_var = Variable(var1.type, var1.value)
+    stack.push(new_var)
 
 
 def instr_pops(var):
-    if len(stack) == 0:
-        print_err_and_exit("Empty stack", 56)
+    if stack.is_empty() == True:
+        print_err_and_exit("Stack is empty", 56)
 
     poped = stack.pop()
     new_arg = Argument(poped.type, poped.value)
@@ -1002,6 +1063,221 @@ def instr_pops(var):
     find_variable(tmp[0], tmp[1])
     update_variable(tmp[0], tmp[1], new_arg)
 
+
+def instr_aritmetic_s(name):
+    if stack.is_empty() == True:
+        print_err_and_exit("Stack is empty", 56)
+    var2 = stack.pop()
+
+    if stack.is_empty() == True:
+        print_err_and_exit("Stack is empty", 56)
+    var1 = stack.pop()
+
+    if var1.type != "int" or var2.type != "int":
+        print_err_and_exit("Arguments has to be of type int", 53)
+
+    print(var1.value, var2.value)
+    if name == "ADDS":
+        new_var = Variable(var1.type, int(var1.value) + int(var2.value))
+    if name == "SUBS":
+        new_var = Variable(var1.type, int(var1.value) - int(var2.value))
+    if name == "MULS":
+        new_var = Variable(var1.type, int(var1.value) * int(var2.value))
+    if name == "IDIVS":
+        if int(var2.value) == 0:
+            print_err_and_exit("Division by 0", 57)
+        new_var = Variable(var1.type, int(var1.value) // int(var2.value))
+
+    stack.push(new_var)
+
+
+def instr_relational_s(name):
+    print("SOM TU", name)
+    if stack.is_empty() == True:
+        print_err_and_exit("Stack is empty", 56)
+    var2 = stack.pop()
+
+    if stack.is_empty() == True:
+        print_err_and_exit("Stack is empty", 56)
+    var1 = stack.pop()
+
+    if var1.type == "int" and var2.type != "int":
+        print_err_and_exit("Arguments has to be of same type", 53)
+    if var1.type == "bool" and var2.type != "bool":
+        print_err_and_exit("Arguments has to be of same type", 53)
+    if var1.type == "string" and var2.type != "string":
+        print_err_and_exit("Arguments has to be of same type", 53)
+
+    if name == "GTS":
+        if var2.type == "int":
+            if int(var1.value) > int(var2.value):
+                new_var = Variable("bool", "true")
+            else:
+                new_var = Variable("bool", "false")
+        elif var2.type == "bool":
+            if var1.value == "true" and var2.value == "false":
+                new_var = Variable("bool", "true")
+            else:
+                new_var = Variable("bool", "false")
+        elif var2.type == "string":
+            if var1.value > var2.value:
+                new_var = Variable("bool", "true")
+            else:
+                new_var = Variable("bool", "false")
+        elif var1.type == "nil" or var2.type == "nil":
+            print_err_and_exit(
+                "Argument can not be nil while performing GT", 53)
+
+    elif name == "LTS":
+        if var2.type == "int":
+            if int(var1.value) < int(var2.value):
+                new_var = Variable("bool", "true")
+            else:
+                new_var = Variable("bool", "false")
+        elif var2.type == "bool":
+            if var1.value == "false" and var2.value == "true":
+                new_var = Variable("bool", "true")
+            else:
+                new_var = Variable("bool", "false")
+        elif var2.type == "string":
+            if var1.value < var2.value:
+                new_var = Variable("bool", "true")
+            else:
+                new_var = Variable("bool", "false")
+        elif var1.type == "nil" or var2.type == "nil":
+            print_err_and_exit(
+                "Argument can not be nil while performing LT", 53)
+
+    elif name == "EQS":
+        if var2.type == "int":
+            if int(var1.value) == int(var2.value):
+                new_var = Variable("bool", "true")
+            else:
+                new_var = Variable("bool", "false")
+        elif var2.type == "bool":
+            if var1.value == var2.value:
+                new_var = Variable("bool", "true")
+            else:
+                new_var = Variable("bool", "false")
+        elif var2.type == "string":
+            if var2.value == var2.value:
+                new_var = Variable("bool", "true")
+            else:
+                new_var = Variable("bool", "false")
+        elif var1.type == "nil" or var2.type == "nil":
+            if var1.value == var2.value:
+                new_var = Variable("bool", "true")
+            else:
+                new_var = Variable("bool", "false")
+
+    stack.push(new_var)
+
+
+def instr_boolean_s(name):
+    if stack.is_empty() == True:
+        print_err_and_exit("Stack is empty", 56)
+    var2 = stack.pop()
+    if var2.type != "bool":
+        print_err_and_exit("Argument has to be of type bool", 53)
+
+    if name == "NOTS":
+        if var2.value == "false":
+            new_val = Variable("bool", "true")
+        else:
+            new_val = Variable("bool", "false")
+    else:
+        if stack.is_empty() == True:
+            print_err_and_exit("Stack is empty", 56)
+        var1 = stack.pop()
+        if var1.type != "bool":
+            print_err_and_exit("Argument has to be of type bool", 53)
+
+        if name == "ANDS":
+            if var1.value == "false" or var2.value == "false":
+                new_val = Variable("bool", "false")
+            else:
+                new_val = Variable("bool", "true")
+        elif name == "ORS":
+            if var1.value == "false" and var2.value == "false":
+                new_val = Variable("bool", "false")
+            else:
+                new_val = Variable("bool", "true")
+
+    stack.push(new_val)
+
+
+def instr_int_to_char_s():
+    if stack.is_empty() == True:
+        print_err_and_exit("Stack is empty", 56)
+
+    poped = stack.pop()
+
+    if poped.type != "int":
+        print_err_and_exit(
+            "Argument has to be of type int to be converted to char", 53)
+
+    try:
+        new_val = chr(int(poped.value))
+    except:
+        print_err_and_exit("Error while converting int to string", 58)
+    new_val = Variable("string", new_val)
+
+    stack.push(new_val)
+
+
+def instr_string_to_int_s():
+    if stack.is_empty() == True:
+        print_err_and_exit("Stack is empty", 56)
+    var2 = stack.pop()
+
+    if stack.is_empty() == True:
+        print_err_and_exit("Stack is empty", 56)
+    var1 = stack.pop()
+    if var1.type != "string" and var2.type != "int":
+        print_err_and_exit("Arguments has to be of correct type", 53)
+
+    if var1.value == None or int(var2.value) >= len(var1.value) or int(var2.value) < 0:
+        print_err_and_exit("Index out of range", 58)
+
+    new_var = Variable("int", ord(var1.value[int(var2.value)]))
+
+    stack.push(new_var)
+
+
+def instr_jmpeq_s(label):
+    global position_pointer
+    if stack.is_empty() == True:
+        print_err_and_exit("Stack is empty", 56)
+    var2 = stack.pop()
+
+    if stack.is_empty() == True:
+        print_err_and_exit("Stack is empty", 56)
+    var1 = stack.pop()
+
+    if (var1.type != var2.type and var1.type == "nil" and var2.type == "nil"):
+        print_err_and_exit("Variables are of different type", 53)
+    if (str(var1.value) == str(var2.value)):
+        if not(label in labels.keys()):
+            print_err_and_exit("Label does not exist in jumpifeq", 52)
+        position_pointer = int(labels[label]-1)
+
+
+def instr_jmpneq_s(label):
+    global position_pointer
+    if stack.is_empty() == True:
+        print_err_and_exit("Stack is empty", 56)
+    var2 = stack.pop()
+
+    if stack.is_empty() == True:
+        print_err_and_exit("Stack is empty", 56)
+    var1 = stack.pop()
+
+    if (var1.type != var2.type and var1.type == "nil" and var2.type == "nil"):
+        print_err_and_exit("Variables are of different type", 53)
+    if (str(var1.value) != str(var2.value)):
+        if not(label in labels.keys()):
+            print_err_and_exit("Label does not exist in jumpifeq", 52)
+        position_pointer = int(labels[label]-1)
     ###############################################################################
 
     ############################INTERPRET FUNCTION#################################
@@ -1084,6 +1360,20 @@ def interpret_instruction(instruction):
         instr_pushs(instruction.args[0])
     elif instruction.name == "POPS":
         instr_pops(instruction.args[0])
+    elif instruction.name == "ADDS" or instruction.name == "SUBS" or instruction.name == "MULS" or instruction.name == "IDIVS":
+        instr_aritmetic_s(instruction.name)
+    elif instruction.name == "LTS" or instruction.name == "GTS" or instruction.name == "EQS":
+        instr_relational_s(instruction.name)
+    elif instruction.name == "ANDS" or instruction.name == "ORS" or instruction.name == "NOTS":
+        instr_boolean_s(instruction.name)
+    elif instruction.name == "INT2CHARS":
+        instr_int_to_char_s()
+    elif instruction.name == "STRI2INTS":
+        instr_string_to_int_s()
+    elif instruction.name == "JUMPIFEQS":
+        instr_jmpeq_s(instruction.args[0].value)
+    elif instruction.name == "JUMPIFNEQS":
+        instr_jmpneq_s(instruction.args[0].value)
 ###############################################################################
 
 
@@ -1139,12 +1429,15 @@ print("------------------INTERPRETING---------------------------")
 while position_pointer != len(instructions):
     interpret_instruction(instructions[position_pointer])
     position_pointer += 1
+    insts += 1
 print("------------------INTERPRETING FINISHED WITH SUCCESS-----")
 ###################################################################################################
 
-print("LABELS : ", labels)
+print('\033[96m' + "\nlabels:" + '\033[0m')
+print(labels, "\n******************************")
 
 print_gf()
 print_tf()
 print_lf()
 print_stack()
+print("INSTS - ", insts)
