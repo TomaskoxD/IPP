@@ -1,6 +1,6 @@
 # Documentation of Project Implementation for IPP 2021/2022
 
--   Name: **Tomáš Ondrušek**
+-   Name and surname: **Tomáš Ondrušek**
 -   Login: **xondru18**
 
 # Interpret implementation
