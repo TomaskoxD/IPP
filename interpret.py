@@ -1,4 +1,14 @@
 #!/usr/bin/python3
+
+#  ****************************************************************************
+#  *   IPP                                                                    *
+#  *                                                                          *
+#  *   Implementacia interpreta pre jazyk IPPcode22                           *
+#  *                                                                          *
+#  *	 Ondrušek Tomáš	xondru18                                              *
+#  *                                                                          *
+#  ****************************************************************************
+
 ###################################################################################################
 # ----- importing dependencies -----
 import argparse
@@ -1267,22 +1277,20 @@ def instr_read(var, type):
         try:
             new_arg = Argument("int", int(poped))
         except:
-            new_arg = Argument("nil", "nil")
+            new_arg = Argument("nil", "nil")  # save nil
     elif type_var == "bool":
         if poped.upper() == "TRUE":
             new_arg = Argument("bool", "true")  # save true
-        elif poped.upper() == "FALSE":
-            new_arg = Argument("bool", "false")  # save false
         else:
-            new_arg = Argument("nil", "nil")
+            new_arg = Argument("bool", "false")  # save false
 
     elif type_var == "string":
         try:
             new_arg = Argument("string", poped)
         except:
-            new_arg = Argument("nil", "nil")
+            new_arg = Argument("nil", "nil")  # save nil
     elif type_var == "nil":
-        new_arg = Argument("nil", "nil")
+        new_arg = Argument("nil", "nil")  # save ni;
 
     tmp = var.value.split("@")  # split by @
     find_variable(tmp[0], tmp[1])

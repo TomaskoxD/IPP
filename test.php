@@ -25,7 +25,7 @@ $parse_script = "parse.php";
 $interpret_script = "interpret.py";
 $jexam = "/pub/courses/ipp/jexam_xml/jexam_xml.jar";
 $match = "/^.*$/";
-$valid = ["help", "directory:", "recursive", "parse-script:", "int-script:", "parse-only", "int-only", "jexam:", "testlist:", "match:", "no-clean"];
+$valid = ["help", "directory:", "recursive", "parse-script:", "int-script:", "parse-only", "int-only", "jexampath:", "testlist:", "match:", "no-clean"];
 $args = getopt("", $valid);
 $diff = "diff";
 //#################################################################################################
@@ -67,12 +67,12 @@ if (array_key_exists("int-script", $args)) {
 if (array_key_exists("int-only", $args)) {
     $interpret_only = true;
 }
-if (array_key_exists("jexam", $args)) {
-    if (!is_readable($args["jexam"])) {
-        fwrite(STDERR, "\e[91mFILE is not readable - jexam_xml\e[0m \n");
+if (array_key_exists("jexampath", $args)) {
+    if (!is_readable($args["jexampath"])) {
+        fwrite(STDERR, "\e[91mFILE is not readable - jexampath\e[0m \n");
         exit(41);
     }
-    $jexam_xml = $args["jexam_xml"];
+    $jexam = $args["jexampath"];
 }
 if (array_key_exists("testlist", $args)) {
     $testlist = $args["testlist"];
@@ -409,9 +409,9 @@ function run_test($test_src, $test_input, $test_output, $test_ret_code)
             $none = "";
             file_write_handler($tmp_file, implode("\n", $output));
             if ($parse_only) {
-                exec("$diff $test_output $tmp_file /dev/null $jexam_config 2>/dev/null", $none, $retCode);
+                exec("$diff -Z --strip-trailing-cr $test_output $tmp_file /dev/null $jexam_config 2>/dev/null", $none, $retCode);
             } else {
-                exec("$diff $test_output $tmp_file 2>/dev/null", $none, $retCode);
+                exec("$diff -Z --strip-trailing-cr $test_output $tmp_file 2>/dev/null", $none, $retCode);
             }
             if ($retCode == 0)
                 return true;
@@ -437,7 +437,7 @@ function run_test($test_src, $test_input, $test_output, $test_ret_code)
 }
 
 //#################################################################################################
-//----- function to printout help function -----
+//----- function to printout help -----
 function printHelp()
 {
     echo  "
@@ -453,20 +453,20 @@ function printHelp()
     echo "Tester for interpret.py and parse.php\n";
     echo "Usage: test.php [ --help | --directory=dir | --recursive | --parse-script=script | --int-script=script | --parse-only | --int-only | --jexam=file | --testlist=file | --match=regex ]\n";
 
-    echo "        --directory     |   Search directory for tests\n";
-    echo "        --recursive     |   Search directory recursively\n";
-    echo "        --parse-script  |   Path to parse script\n";
-    echo "        --int-script    |   Path to interpret script\n";
-    echo "        --jexam         |   Path to xml copmarator\n";
-    echo "        --parse-only    |   Only test parse script\n";
-    echo "        --int-only      |   Only test interpret script\n";
-    echo "        --testlist      |   File containing names of test directories\n";
-    echo "        --match         |   Do tests that match regex\n";
+    echo "    --directory     | Search directory for tests\n";
+    echo "    --recursive     | Search directory recursively\n";
+    echo "    --parse-script  | Path to parse script\n";
+    echo "    --int-script    | Path to interpret script\n";
+    echo "    --jexam         | Path to xml comparator\n";
+    echo "    --parse-only    | Only test parse script\n";
+    echo "    --int-only      | Only test interpret script\n";
+    echo "    --testlist      | File containing names of test directories\n";
+    echo "    --match         | Do only tests that match set regex\n";
 
 
-    echo ("\nExample usage: \n");
-    echo ("       ./parse.php --help \n");
-    echo ("       ./parse.php --directory=tests --int-only --int-script=./interpret.py \n");
+    echo "\nExample usage: \n";
+    echo "    ./parse.php --help \n";
+    echo "    ./parse.php --directory=tests --int-only --int-script=./interpret.py \n";
     exit(0);
 }
 //#################################################################################################
