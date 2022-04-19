@@ -1,7 +1,7 @@
-# Documentation of Project Implementation for IPP 2021/2022
+# Implementační dokumentace k 2. úloze do IPP 2021/2022
 
--   Name and surname: **Tomáš Ondrušek**
--   Login: **xondru18**
+-   Jméno a příjmení: Tomáš Ondrušek
+-   Login: xondru18
 
 # Interpret implementation
 
